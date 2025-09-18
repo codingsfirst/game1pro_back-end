@@ -24,8 +24,8 @@ import gameRoutes from "./routes/gameRoutes.js";
 import roundRoutes from "./routes/roundRoutes.js";
 
 /* ---- Game Engines ---- */
-import initGameEngine from "./gameEngine.js";   // Aviator (your existing engine)
-import initZooEngine from "./zooEngine.js";     // Animal roulette (this file below)
+import initGameEngine from "./gameEngine.js"; // Aviator (your existing engine)
+import initZooEngine from "./zooEngine.js"; // Animal roulette (this file below)
 
 // Quiet dotenv
 dotenv.config({ quiet: true });
@@ -40,6 +40,10 @@ app.use(
   })
 );
 app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.send("Welcome to my Node.js project 🚀");
+});
 
 /* ---- REST Routes ---- */
 app.use("/api/auth", authRoutes);
@@ -59,15 +63,20 @@ app.use("/api/agents-v2", agentRoutes_v2);
 app.use("/api/coins-v2", coinRoutes_v2);
 app.use("/api/orders", orderRoutes);
 
+app.get("/health", (req, res) => res.send("ok"));
+
 /* ---- HTTP + Socket.IO ---- */
 const server = http.createServer(app);
 const io = new IOServer(server, {
-  cors: { origin: ["http://localhost:5173", "http://localhost:5174"], credentials: true },
+  cors: {
+    origin: ["http://localhost:5173", "http://localhost:5174"],
+    credentials: true,
+  },
 });
 
 /* ---- Initialize Game Engines (Sockets) ---- */
-initGameEngine(io);                // Aviator
-const zooApi = initZooEngine(io);  // Zoo roulette
+initGameEngine(io); // Aviator
+const zooApi = initZooEngine(io); // Zoo roulette
 
 /* ---- Optional HTTP snapshot for Zoo engine ---- */
 app.get("/api/zoo/current-round", (req, res) => {
@@ -93,7 +102,6 @@ function listenOnPort(port, attempt = 1) {
   server.once("error", (err) => {
     if (err?.code === "EADDRINUSE" && attempt < MAX_TRIES) {
       const next = port + 1;
-      console.warn(`⚠️  Port ${port} in use, trying ${next}...`);
       listenOnPort(next, attempt + 1);
     } else {
       console.error("❌ Server error:", err);
@@ -102,7 +110,7 @@ function listenOnPort(port, attempt = 1) {
   });
 
   server.listen(port, () => {
-    console.log(`🚀 Server + sockets running on port ${port}`);
+    console.log("🚀 Server + sockets running on port ${port}");
   });
 }
 
