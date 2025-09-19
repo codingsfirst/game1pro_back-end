@@ -35,7 +35,11 @@ const app = express();
 /* ---- CORS / JSON ---- */
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://game1pro.com",
+    ],
     credentials: true,
   })
 );
@@ -69,7 +73,11 @@ app.get("/health", (req, res) => res.send("ok"));
 const server = http.createServer(app);
 const io = new IOServer(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174"],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "https://game1pro.com",
+    ],
     credentials: true,
   },
 });
