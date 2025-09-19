@@ -4,7 +4,8 @@ import User from "./models/User.js";
 import Round from "./models/Round.js";
 import { Queue } from "bullmq";
 
-const REDIS_URL = process.env.REDIS_URL || process.env.REDIS || "redis://127.0.0.1:6379";
+const REDIS_URL =
+  process.env.REDIS_URL || process.env.REDIS || "redis://127.0.0.1:6379";
 
 export const PHASES = {
   WAITING: "WAITING",
@@ -20,16 +21,29 @@ const MIN_BET = 5;
 const MAX_BET = 50000;
 const MAX_MULTIPLIER = 40.0;
 
-const roundQueue = new Queue("round-persist", { connection: { url: REDIS_URL } });
+const roundQueue = new Queue("round-persist", {
+  connection: { url: REDIS_URL },
+});
 
 function generateCrash() {
   const p = Math.random();
   let min, max;
-  if (p < 0.30) { min = 0.0; max = 1.0; }
-  else if (p < 0.60) { min = 1.0; max = 3.0; }
-  else if (p < 0.80) { min = 3.0; max = 7.0; }
-  else if (p < 0.90) { min = 7.0; max = 20.0; }
-  else { min = 20.0; max = 40.0; }
+  if (p < 0.3) {
+    min = 0.0;
+    max = 1.0;
+  } else if (p < 0.6) {
+    min = 1.0;
+    max = 3.0;
+  } else if (p < 0.8) {
+    min = 3.0;
+    max = 7.0;
+  } else if (p < 0.9) {
+    min = 7.0;
+    max = 20.0;
+  } else {
+    min = 20.0;
+    max = 40.0;
+  }
   const val = Math.random() * (max - min) + min;
   return Math.min(Number(val.toFixed(2)), MAX_MULTIPLIER);
 }
@@ -52,7 +66,7 @@ export default function initGameEngine(io) {
   let roundStartAt = null;
   let runStartAt = null;
   let crashPoint = null;
-  let multiplier = 1.0;
+  let multiplier = 0.0;
   let runInterval = null;
 
   let bets = [];
@@ -66,8 +80,11 @@ export default function initGameEngine(io) {
       serverTime: Date.now(),
       roundStartAt,
       runStartAt,
-      multiplier: phase === PHASES.RUNNING ? multiplier : 1.0,
-      betWindowRemaining: phase === PHASES.BETTING ? Math.max(0, BET_WINDOW_MS - (Date.now() - roundStartAt)) : 0,
+      multiplier: phase === PHASES.RUNNING ? multiplier : 0.0,
+      betWindowRemaining:
+        phase === PHASES.BETTING
+          ? Math.max(0, BET_WINDOW_MS - (Date.now() - roundStartAt))
+          : 0,
       betsCount: bets.length,
       recentHistory: historyCache.slice(0, 50),
       roundId: currentRoundId,
@@ -81,7 +98,8 @@ export default function initGameEngine(io) {
 
   async function finalizeRoundAndEnqueue() {
     const resolved = bets.map((b) => {
-      const cashed = typeof b.cashedAt === "number" && b.cashedAt < crashPoint + 1e-9;
+      const cashed =
+        typeof b.cashedAt === "number" && b.cashedAt < crashPoint + 1e-9;
       const payout = cashed ? Number((b.amount * b.cashedAt).toFixed(2)) : 0;
       return {
         betId: b.id,
@@ -112,7 +130,10 @@ export default function initGameEngine(io) {
       timestamp: roundRecord.timestamp,
     });
 
-    await roundQueue.add("persistRound", roundRecord, { removeOnComplete: true, attempts: 3 });
+    await roundQueue.add("persistRound", roundRecord, {
+      removeOnComplete: true,
+      attempts: 3,
+    });
 
     bets = [];
     publicBets = [];
@@ -123,7 +144,7 @@ export default function initGameEngine(io) {
     currentRoundId = `R${Date.now()}`;
     roundStartAt = Date.now();
     runStartAt = null;
-    multiplier = 1.0;
+    multiplier = 0.0;
     crashPoint = null;
     if (runInterval) {
       clearInterval(runInterval);
@@ -157,7 +178,7 @@ export default function initGameEngine(io) {
   function startRunningPhase() {
     phase = PHASES.RUNNING;
     runStartAt = Date.now();
-    multiplier = 1.0;
+    multiplier = 0.0;
     crashPoint = generateCrash();
 
     broadcastPhase();
@@ -190,7 +211,10 @@ export default function initGameEngine(io) {
       roundStartAt,
       runStartAt,
       multiplier,
-      betWindowRemaining: phase === PHASES.BETTING ? Math.max(0, BET_WINDOW_MS - (Date.now() - roundStartAt)) : 0,
+      betWindowRemaining:
+        phase === PHASES.BETTING
+          ? Math.max(0, BET_WINDOW_MS - (Date.now() - roundStartAt))
+          : 0,
       betsCount: bets.length,
       recentHistory: historyCache.slice(0, 50),
       roundId: currentRoundId,
@@ -199,17 +223,44 @@ export default function initGameEngine(io) {
 
     socket.on("placeBet", async (payload, cb) => {
       try {
-        if (phase !== PHASES.BETTING) return cb && cb({ ok: false, code: "NOT_BETTING", message: "Betting closed." });
+        if (phase !== PHASES.BETTING)
+          return (
+            cb &&
+            cb({ ok: false, code: "NOT_BETTING", message: "Betting closed." })
+          );
 
         const amount = Number(payload?.amount || 0);
         if (!amount || isNaN(amount) || amount < MIN_BET || amount > MAX_BET) {
-          return cb && cb({ ok: false, code: "INVALID_AMOUNT", message: `Bet must be between ${MIN_BET} and ${MAX_BET}.` });
+          return (
+            cb &&
+            cb({
+              ok: false,
+              code: "INVALID_AMOUNT",
+              message: `Bet must be between ${MIN_BET} and ${MAX_BET}.`,
+            })
+          );
         }
 
         const user = await verifyToken(payload?.token);
-        if (!user) return cb && cb({ ok: false, code: "UNAUTH", message: "Authentication required." });
+        if (!user)
+          return (
+            cb &&
+            cb({
+              ok: false,
+              code: "UNAUTH",
+              message: "Authentication required.",
+            })
+          );
 
-        if ((user.coins || 0) < amount) return cb && cb({ ok: false, code: "INSUFFICIENT", message: "Insufficient balance." });
+        if ((user.coins || 0) < amount)
+          return (
+            cb &&
+            cb({
+              ok: false,
+              code: "INSUFFICIENT",
+              message: "Insufficient balance.",
+            })
+          );
 
         user.coins = user.coins - amount; // stake deducted now
         await user.save();
@@ -238,22 +289,47 @@ export default function initGameEngine(io) {
 
     socket.on("cashOut", async (payload, cb) => {
       try {
-        if (phase !== PHASES.RUNNING) return cb && cb({ ok: false, code: "NOT_RUNNING", message: "Round not running." });
+        if (phase !== PHASES.RUNNING)
+          return (
+            cb &&
+            cb({
+              ok: false,
+              code: "NOT_RUNNING",
+              message: "Round not running.",
+            })
+          );
 
         const betId = payload?.betId;
-        if (!betId) return cb && cb({ ok: false, code: "NO_BET_ID", message: "No bet id." });
+        if (!betId)
+          return (
+            cb && cb({ ok: false, code: "NO_BET_ID", message: "No bet id." })
+          );
 
         const bet = bets.find((b) => b.id === betId);
-        if (!bet) return cb && cb({ ok: false, code: "NO_BET", message: "Bet not found." });
-        if (bet.cashedAt) return cb && cb({ ok: false, code: "ALREADY_CASHED", message: "Already cashed out." });
+        if (!bet)
+          return (
+            cb && cb({ ok: false, code: "NO_BET", message: "Bet not found." })
+          );
+        if (bet.cashedAt)
+          return (
+            cb &&
+            cb({
+              ok: false,
+              code: "ALREADY_CASHED",
+              message: "Already cashed out.",
+            })
+          );
 
         const user = await verifyToken(payload?.token);
-        if (!user || user._id.toString() !== bet.userId) return cb && cb({ ok: false, code: "UNAUTH", message: "Unauthorized." });
+        if (!user || user._id.toString() !== bet.userId)
+          return (
+            cb && cb({ ok: false, code: "UNAUTH", message: "Unauthorized." })
+          );
 
         bet.cashedAt = multiplier;
 
         const payout = Number((bet.amount * bet.cashedAt).toFixed(2)); // total returned (stake+profit)
-        const profit = Number((payout - bet.amount).toFixed(2));       // profit only
+        const profit = Number((payout - bet.amount).toFixed(2)); // profit only
 
         user.coins = (user.coins || 0) + payout; // add full payout; net effect = +profit (stake was deducted)
         await user.save();
@@ -261,15 +337,22 @@ export default function initGameEngine(io) {
         io.to(bet.socketId).emit("cashed", {
           betId: bet.id,
           cashedAt: bet.cashedAt,
-          payout,        // total (for reference)
+          payout, // total (for reference)
           stake: bet.amount,
-          profit,        // profit only (use this in UI)
-          newBalance: user.coins
+          profit, // profit only (use this in UI)
+          newBalance: user.coins,
         });
 
         io.emit("publicCashed", { betId: bet.id });
 
-        cb && cb({ ok: true, betId: bet.id, cashedAt: bet.cashedAt, payout, profit });
+        cb &&
+          cb({
+            ok: true,
+            betId: bet.id,
+            cashedAt: bet.cashedAt,
+            payout,
+            profit,
+          });
       } catch (err) {
         console.error("cashOut error", err);
         cb && cb({ ok: false, code: "ERR", message: "Server error" });
@@ -278,27 +361,44 @@ export default function initGameEngine(io) {
 
     socket.on("cancelBet", async (payload, cb) => {
       try {
-        if (phase !== PHASES.BETTING) return cb && cb({ ok: false, code: "NOT_BETTING", message: "Can only cancel during betting phase." });
+        if (phase !== PHASES.BETTING)
+          return (
+            cb &&
+            cb({
+              ok: false,
+              code: "NOT_BETTING",
+              message: "Can only cancel during betting phase.",
+            })
+          );
 
         const betId = payload?.betId;
-        if (!betId) return cb && cb({ ok: false, code: "NO_BET_ID", message: "No bet id." });
+        if (!betId)
+          return (
+            cb && cb({ ok: false, code: "NO_BET_ID", message: "No bet id." })
+          );
 
         const bet = bets.find((b) => b.id === betId);
-        if (!bet) return cb && cb({ ok: false, code: "NO_BET", message: "Bet not found." });
+        if (!bet)
+          return (
+            cb && cb({ ok: false, code: "NO_BET", message: "Bet not found." })
+          );
 
         const user = await verifyToken(payload?.token);
-        if (!user || user._id.toString() !== bet.userId) return cb && cb({ ok: false, code: "UNAUTH", message: "Unauthorized." });
+        if (!user || user._id.toString() !== bet.userId)
+          return (
+            cb && cb({ ok: false, code: "UNAUTH", message: "Unauthorized." })
+          );
 
         user.coins = (user.coins || 0) + bet.amount; // refund stake
         await user.save();
 
-        bets = bets.filter(b => b.id !== betId);
-        publicBets = publicBets.filter(b => b.id !== betId);
+        bets = bets.filter((b) => b.id !== betId);
+        publicBets = publicBets.filter((b) => b.id !== betId);
 
         io.to(bet.socketId).emit("betCanceled", {
           betId: bet.id,
           amount: bet.amount,
-          newBalance: user.coins
+          newBalance: user.coins,
         });
 
         cb && cb({ ok: true, betId: bet.id, amount: bet.amount });
