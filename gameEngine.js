@@ -26,24 +26,31 @@ const roundQueue = new Queue("round-persist", {
 });
 
 function generateCrash() {
-  const p = Math.random();
+  const p = Math.random() * 100;
   let min, max;
-  if (p < 0.3) {
+
+  if (p < 60) {
+    // 60% chance → 0x – 1x
     min = 0.0;
     max = 1.0;
-  } else if (p < 0.6) {
+  } else if (p < 80) {
+    // 20% chance → 1x – 3x
     min = 1.0;
     max = 3.0;
-  } else if (p < 0.8) {
+  } else if (p < 90) {
+    // 10% chance → 3x – 7x
     min = 3.0;
     max = 7.0;
-  } else if (p < 0.9) {
-    min = 7.0;
+  } else if (p < 95) {
+    // 5% chance → 10x – 20x
+    min = 10.0;
     max = 20.0;
   } else {
+    // last 5% → 20x – 40x
     min = 20.0;
     max = 40.0;
   }
+
   const val = Math.random() * (max - min) + min;
   return Math.min(Number(val.toFixed(2)), MAX_MULTIPLIER);
 }
