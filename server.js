@@ -39,6 +39,7 @@ app.use(
       "http://localhost:5173",
       "http://localhost:5174",
       "https://game1pro.com",
+      "https://adminpannel.game1pro.com",
     ],
     credentials: true,
   })
@@ -77,6 +78,7 @@ const io = new IOServer(server, {
       "http://localhost:5173",
       "http://localhost:5174",
       "https://game1pro.com",
+      "https://adminpannel.game1pro.com",
     ],
     credentials: true,
   },
