@@ -1,21 +1,27 @@
 {
   "name": "game1pro-backend",
   "version": "1.0.0",
-  "main": "server.js",
+  "description": "Game1Pro backend (user + admin)",
+  "main": "src/index.js",
+  "type": "module",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "bullmq": "^5.66.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.0",
-    "express": "^4.19.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.0.0",
-    "morgan": "^1.10.0"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ioredis": "^5.8.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.5.0",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.0"
+    "nodemon": "^3.1.0"
   }
 }
